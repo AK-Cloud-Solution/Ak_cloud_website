@@ -30,7 +30,7 @@ module.exports = {
         eyebrow: 'Let’s build what’s next',
         title: 'Bring your next big idea to life.',
         description: 'Tell us what you’re building. We’ll help you find the fastest, safest path from concept to production.',
-        email: 'sachin06012018@gmail.com',
+        email: 'connect@akcloudsolution.com',
         location: 'India · Available globally',
         responseTime: 'Response within one business day'
     },

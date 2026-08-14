@@ -34,7 +34,7 @@ export const projects = [
 ];
 
 export const timeline = [
-  ["09:15", "Stand-up meeting completed"], ["09:17", "AK Cloud summarized discussion"], ["09:18", "4 action items created"], ["09:19", "Project tasks updated"], ["09:20", "Calendar follow-up scheduled"],
+  ["09:15", "Team completes stand-up"], ["09:17", "AK Cloud captures context"], ["09:18", "AI identifies next actions"], ["09:19", "Workspace updates automatically"], ["09:20", "Team receives the plan"],
 ];
 
 export const securityItems = [
@@ -42,7 +42,7 @@ export const securityItems = [
 ];
 
 export const heroStates = [
-  { text: "Meeting notes ready", icon: MessageSquareText }, { text: "3 tasks prioritized", icon: FolderKanban }, { text: "Deployment successful", icon: Code2 }, { text: "Knowledge indexed", icon: FileText },
+  { text: "Define the vision", icon: Sparkles }, { text: "Design the strategy", icon: FolderKanban }, { text: "Build the solution", icon: Code2 }, { text: "Scale the impact", icon: BarChart3 },
 ];
 
 export const agentIcon = Bot;

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title description">
+  <title id="title">AK Cloud</title>
+  <desc id="description">Interlocking AK monogram in a light blue gradient</desc>
+  <defs>
+    <linearGradient id="ak-blue" x1="92" y1="72" x2="422" y2="440" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#d7f7ff"/>
+      <stop offset="0.45" stop-color="#70d5ff"/>
+      <stop offset="1" stop-color="#168dff"/>
+    </linearGradient>
+  </defs>
+  <g fill="url(#ak-blue)">
+    <path fill-rule="evenodd" d="M58 410 198 66l132 275-46 52-42-92h-86l-43 109H58Zm117-160h48l-25-70-23 70Z"/>
+    <path d="M278 446v-94l47-54v148h-47Zm0-151L419 122 325 277l-47 54-94 109 94-145Zm47 3 77-91h64l-88 116 91 123h-72l-72-91v-57Z"/>
+  </g>
+</svg>

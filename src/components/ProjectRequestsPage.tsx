@@ -1,0 +1,17 @@
+import { useEffect, useState } from "react";
+import { ArrowLeft, Inbox, Loader2, RefreshCw } from "lucide-react";
+import { loadProjectRequests, ProjectRequest, updateProjectRequestStatus } from "../content/siteContent";
+import { toast } from "sonner";
+import { Toaster } from "./ui/sonner";
+
+const statuses: ProjectRequest["status"][] = ["new", "contacted", "qualified", "closed"];
+
+export function ProjectRequestsPage() {
+  const [adminKey, setAdminKey] = useState(() => sessionStorage.getItem("akcloud_admin_key") || "");
+  const [requests, setRequests] = useState<ProjectRequest[]>([]);
+  const [loading, setLoading] = useState(false);
+  const refresh = async () => { if (!adminKey) return; setLoading(true); try { setRequests(await loadProjectRequests(adminKey)); sessionStorage.setItem("akcloud_admin_key", adminKey); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to load requests"); } finally { setLoading(false); } };
+  useEffect(() => { if (adminKey) refresh(); }, []);
+  const changeStatus = async (request: ProjectRequest, status: ProjectRequest["status"]) => { try { const updated = await updateProjectRequestStatus(request._id, status, adminKey); setRequests(items => items.map(item => item._id === updated._id ? updated : item)); toast.success("Request status updated."); } catch (error) { toast.error(error instanceof Error ? error.message : "Unable to update request"); } };
+  return <div className="request-inbox-page"><header className="admin-topbar"><button className="brand-lockup" onClick={() => location.assign("/admin")}><span className="brand-mark"><img src="/brand/ak-cloud-logo-black.png" alt="" /></span><span>AK <b>Cloud</b> Requests</span></button><div className="admin-top-actions"><button onClick={refresh} disabled={loading}>{loading ? <Loader2 className="animate-spin" /> : <RefreshCw />} Refresh</button><button onClick={() => location.assign("/admin")}><ArrowLeft /> Content studio</button></div></header><main className="request-inbox-main"><div className="request-inbox-heading"><div><span>PROJECT INBOX</span><h1>Website requests</h1><p>Demo and project enquiries submitted from the public website.</p></div><label><span>Admin key</span><input type="password" value={adminKey} onChange={event => setAdminKey(event.target.value)} placeholder="Enter ADMIN_KEY" /><button onClick={refresh}>Connect</button></label></div>{loading ? <div className="request-empty"><Loader2 className="animate-spin" /> Loading requests…</div> : requests.length === 0 ? <div className="request-empty"><Inbox /><h2>No requests yet</h2><p>New website submissions will appear here.</p></div> : <div className="request-table"><div className="request-table-head"><span>Contact</span><span>Request</span><span>Message</span><span>Received</span><span>Status</span></div>{requests.map(request => <article key={request._id}><div><strong>{request.name}</strong><a href={`mailto:${request.email}`}>{request.email}</a><small>{request.company}</small></div><span className="request-kind">{request.requestType === "demo" ? "Demo" : "Project"}</span><p>{request.message}</p><time>{new Date(request.createdAt).toLocaleString()}</time><select value={request.status} onChange={event => changeStatus(request, event.target.value as ProjectRequest["status"])}>{statuses.map(status => <option key={status}>{status}</option>)}</select></article>)}</div>}</main><Toaster /></div>;
+}

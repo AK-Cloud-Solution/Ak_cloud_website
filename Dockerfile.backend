@@ -1,0 +1,13 @@
+FROM node:20-alpine
+WORKDIR /app
+ENV NODE_ENV=production
+ENV PORT=8080
+
+COPY server/package*.json ./server/
+RUN cd server && npm install --omit=dev
+COPY server ./server
+
+RUN mkdir -p /app/server/uploads /app/server/data && chown -R node:node /app
+USER node
+EXPOSE 8080
+CMD ["node", "server/index.js"]

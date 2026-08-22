@@ -121,3 +121,11 @@ server/node_modules
 server/.env
 server/uploads
 server/data/site-content.json
+
+# Terraform
+infra/.terraform/
+infra/*.tfstate
+infra/*.tfstate.*
+infra/.terraform.lock.hcl
+infra/*.tfvars
+infra/*.tfvars.json

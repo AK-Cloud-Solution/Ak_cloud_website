@@ -19,6 +19,10 @@ app.use('/api/projects', require('./routes/projects'));
 app.use('/api/content', require('./routes/content'));
 app.use('/api/requests', require('./routes/requests'));
 
+app.get('/health', (_req, res) => {
+    res.json({ status: 'ok' });
+});
+
 // Database Connection
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/akcloud')
     .then(() => console.log('Connected to MongoDB'))

@@ -1,0 +1,75 @@
+name: Destroy AK Cloud Infrastructure
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DESTROY to permanently delete AK Cloud infrastructure
+        required: true
+        type: string
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_mongo_uri: ${{ secrets.MONGO_URI }}
+  TF_VAR_admin_key: ${{ secrets.ADMIN_KEY }}
+  TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+  TF_VAR_email_user: ${{ secrets.EMAIL_USER }}
+  TF_VAR_email_pass: ${{ secrets.EMAIL_PASS }}
+  TF_VAR_name_prefix: akcloud
+
+permissions:
+  contents: read
+
+concurrency:
+  group: akcloud-infrastructure
+  cancel-in-progress: false
+
+jobs:
+  destroy:
+    name: Terraform destroy
+    runs-on: ubuntu-latest
+    environment:
+      name: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require destroy confirmation
+        if: ${{ inputs.confirmation != 'DESTROY' }}
+        run: |
+          echo 'Confirmation must exactly equal DESTROY.'
+          exit 1
+      - name: Verify Azure service principal configuration
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+        run: |
+          if [ -z "$AZURE_CREDENTIALS" ]; then
+            echo "Missing GitHub Actions secret: AZURE_CREDENTIALS"
+            exit 1
+          fi
+      - uses: azure/login@v2
+        with:
+          auth-type: SERVICE_PRINCIPAL
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Verify Terraform state configuration
+        env:
+          TF_STATE_RESOURCE_GROUP: ${{ secrets.TF_STATE_RESOURCE_GROUP }}
+          TF_STATE_STORAGE_ACCOUNT: ${{ secrets.TF_STATE_STORAGE_ACCOUNT }}
+          TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
+        run: |
+          for variable in TF_STATE_RESOURCE_GROUP TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER; do
+            if [ -z "${!variable}" ]; then
+              echo "Missing GitHub Actions secret: $variable"
+              exit 1
+            fi
+          done
+      - name: Initialize Terraform remote state
+        run: >-
+          terraform -chdir=infra init -input=false
+          -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}"
+          -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}"
+          -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}"
+          -backend-config="key=akcloud.tfstate"
+          -backend-config="use_azuread_auth=true"
+      - name: Destroy infrastructure
+        run: terraform -chdir=infra destroy -input=false -auto-approve

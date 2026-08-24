@@ -1,4 +1,4 @@
-name: Provision AK Cloud Infrastructure
+name: Plan and Apply AK Cloud Infrastructure
 
 on:
   push:
@@ -24,8 +24,8 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  terraform:
-    name: Terraform apply
+  plan:
+    name: Terraform plan
     runs-on: ubuntu-latest
     environment:
       name: infrastructure
@@ -68,5 +68,58 @@ jobs:
         run: terraform -chdir=infra validate
       - name: Plan Terraform
         run: terraform -chdir=infra plan -input=false -out=tfplan
-      - name: Apply Terraform
+      - name: Upload Terraform plan
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plan-${{ github.run_id }}
+          path: infra/tfplan
+          retention-days: 1
+
+  apply:
+    name: Terraform apply
+    needs: plan
+    runs-on: ubuntu-latest
+    environment:
+      name: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download Terraform plan
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plan-${{ github.run_id }}
+          path: infra
+      - name: Verify Azure service principal configuration
+        env:
+          AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
+        run: |
+          if [ -z "$AZURE_CREDENTIALS" ]; then
+            echo "Missing GitHub Actions secret: AZURE_CREDENTIALS"
+            exit 1
+          fi
+      - uses: azure/login@v2
+        with:
+          auth-type: SERVICE_PRINCIPAL
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Verify Terraform state configuration
+        env:
+          TF_STATE_RESOURCE_GROUP: ${{ secrets.TF_STATE_RESOURCE_GROUP }}
+          TF_STATE_STORAGE_ACCOUNT: ${{ secrets.TF_STATE_STORAGE_ACCOUNT }}
+          TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
+        run: |
+          for variable in TF_STATE_RESOURCE_GROUP TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER; do
+            if [ -z "${!variable}" ]; then
+              echo "Missing GitHub Actions secret: $variable"
+              exit 1
+            fi
+          done
+      - name: Initialize Terraform remote state
+        run: >-
+          terraform -chdir=infra init -input=false
+          -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}"
+          -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}"
+          -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}"
+          -backend-config="key=akcloud.tfstate"
+          -backend-config="use_azuread_auth=true"
+      - name: Apply approved Terraform plan
         run: terraform -chdir=infra apply -input=false -auto-approve tfplan

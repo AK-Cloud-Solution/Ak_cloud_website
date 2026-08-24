@@ -2,11 +2,8 @@ name: Provision AK Cloud Infrastructure
 
 on:
   push:
-    paths:
-      - infra/**
     branches:
-      - main
-      -  feature/**
+      - feature/**
   workflow_dispatch:
 
 env:

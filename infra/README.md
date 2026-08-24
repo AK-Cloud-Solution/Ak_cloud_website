@@ -15,6 +15,7 @@ The GitHub Actions workflow provisions the stack with public bootstrap images, b
 Create these GitHub Actions secrets:
 
 - `AZURE_CLIENT_ID`
+- `AZURE_CLIENT_SECRET`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
 - `MONGO_URI`
@@ -23,7 +24,9 @@ Create these GitHub Actions secrets:
 - `EMAIL_USER` (optional)
 - `EMAIL_PASS` (optional)
 
-Configure Azure federated credentials for the GitHub Actions service principal. Grant it `Contributor` on the deployment resource group or subscription and `User Access Administrator` if it must create the `AcrPull` role assignment.
+The Azure values must be configured as repository secrets, or as secrets on every environment used by the workflow. The names are case-sensitive. `AZURE_CLIENT_ID` is the application/client ID, `AZURE_CLIENT_SECRET` is its client secret, `AZURE_TENANT_ID` is the Microsoft Entra tenant ID, and `AZURE_SUBSCRIPTION_ID` is the target subscription ID. Rotate the client secret before it expires and never commit it to the repository.
+
+The workflows use service-principal authentication with the client secret. Grant the service principal `Contributor` on the deployment resource group or subscription and `User Access Administrator` if it must create the `AcrPull` role assignment.
 
 Push to `main` or run the `Provision, Build and Deploy AK Cloud` workflow manually. Configure at least one required reviewer for the `production` environment under repository Settings > Environments. The deployment URLs are printed in the final workflow step.
 

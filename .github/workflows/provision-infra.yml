@@ -44,6 +44,18 @@ jobs:
           auth-type: SERVICE_PRINCIPAL
           creds: ${{ secrets.AZURE_CREDENTIALS }}
       - uses: hashicorp/setup-terraform@v3
+      - name: Verify Terraform state configuration
+        env:
+          TF_STATE_RESOURCE_GROUP: ${{ secrets.TF_STATE_RESOURCE_GROUP }}
+          TF_STATE_STORAGE_ACCOUNT: ${{ secrets.TF_STATE_STORAGE_ACCOUNT }}
+          TF_STATE_CONTAINER: ${{ secrets.TF_STATE_CONTAINER }}
+        run: |
+          for variable in TF_STATE_RESOURCE_GROUP TF_STATE_STORAGE_ACCOUNT TF_STATE_CONTAINER; do
+            if [ -z "${!variable}" ]; then
+              echo "Missing GitHub Actions secret: $variable"
+              exit 1
+            fi
+          done
       - name: Initialize Terraform remote state
         run: >-
           terraform -chdir=infra init -input=false

@@ -20,7 +20,6 @@ env:
   TF_VAR_name_prefix: akcloud
 
 permissions:
-  id-token: write
   contents: read
 
 concurrency:
@@ -35,7 +34,7 @@ jobs:
       name: infrastructure
     steps:
       - uses: actions/checkout@v4
-      - name: Verify Azure OIDC configuration
+      - name: Verify Azure service principal configuration
         env:
           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}

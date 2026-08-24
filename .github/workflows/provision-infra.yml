@@ -6,7 +6,7 @@ on:
       - infra/**
     branches:
       - main
-      - feature/**
+      -  feature/**
   workflow_dispatch:
 
 env:

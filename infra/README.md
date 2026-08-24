@@ -8,7 +8,7 @@ This Terraform stack creates:
 - One public backend Container App listening on port 8080.
 - One public frontend Container App serving the Nginx bundle on port 80.
 
-The GitHub Actions workflow applies the stack once with public bootstrap images, pushes `akcloud-frontend` and `akcloud-backend` to ACR, then applies again with the pushed commit tag.
+The GitHub Actions workflow provisions the stack with public bootstrap images, builds and pushes `akcloud-frontend` and `akcloud-backend` in parallel, then waits for approval on the GitHub `production` environment before applying the pushed commit tag to Container Apps.
 
 ## GitHub configuration
 
@@ -25,7 +25,9 @@ Create these GitHub Actions secrets:
 
 Configure Azure federated credentials for the GitHub Actions service principal. Grant it `Contributor` on the deployment resource group or subscription and `User Access Administrator` if it must create the `AcrPull` role assignment.
 
-Push to `main` or run the `Build and deploy AK Cloud` workflow manually. The deployment URL is printed in the final workflow step.
+Push to `main` or run the `Provision, Build and Deploy AK Cloud` workflow manually. Configure at least one required reviewer for the `production` environment under repository Settings > Environments. The deployment URLs are printed in the final workflow step.
+
+The GitHub Actions identity also needs `AcrPush` on the created registry so the image jobs can run `az acr login` and push images. The Container Apps identity receives `AcrPull` from Terraform.
 
 ## Local Terraform validation
 

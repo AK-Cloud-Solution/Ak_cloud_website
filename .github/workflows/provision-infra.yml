@@ -1,0 +1,56 @@
+name: Provision AK Cloud Infrastructure
+
+on:
+  push:
+    paths:
+      - infra/**
+    branches:
+      - main
+      -  feature/**
+  workflow_dispatch:
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_mongo_uri: ${{ secrets.MONGO_URI }}
+  TF_VAR_admin_key: ${{ secrets.ADMIN_KEY }}
+  TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+  TF_VAR_email_user: ${{ secrets.EMAIL_USER }}
+  TF_VAR_email_pass: ${{ secrets.EMAIL_PASS }}
+  TF_VAR_name_prefix: akcloud
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: akcloud-infrastructure
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: Terraform apply
+    runs-on: ubuntu-latest
+    environment:
+      name: infrastructure
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Initialize Terraform remote state
+        run: >-
+          terraform -chdir=infra init -input=false
+          -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}"
+          -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}"
+          -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}"
+          -backend-config="key=akcloud.tfstate"
+      - name: Validate Terraform
+        run: terraform -chdir=infra validate
+      - name: Plan Terraform
+        run: terraform -chdir=infra plan -input=false -out=tfplan
+      - name: Apply Terraform
+        run: terraform -chdir=infra apply -input=false -auto-approve tfplan

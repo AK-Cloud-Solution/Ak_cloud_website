@@ -1,0 +1,123 @@
+name: Build and Deploy AK Cloud Website
+
+on:
+  push:
+    branches:
+      - feature/**
+  workflow_dispatch:
+
+env:
+  TF_IN_AUTOMATION: true
+  TF_VAR_subscription_id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  TF_VAR_mongo_uri: ${{ secrets.MONGO_URI }}
+  TF_VAR_admin_key: ${{ secrets.ADMIN_KEY }}
+  TF_VAR_jwt_secret: ${{ secrets.JWT_SECRET }}
+  TF_VAR_email_user: ${{ secrets.EMAIL_USER }}
+  TF_VAR_email_pass: ${{ secrets.EMAIL_PASS }}
+  TF_VAR_name_prefix: akcloud
+  IMAGE_TAG: ${{ github.sha }}
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: akcloud-feature-deployment
+  cancel-in-progress: false
+
+jobs:
+  infrastructure-outputs:
+    name: Read provisioned infrastructure
+    runs-on: ubuntu-latest
+    outputs:
+      acr_name: ${{ steps.outputs.outputs.acr_name }}
+      acr_login_server: ${{ steps.outputs.outputs.acr_login_server }}
+      backend_url: ${{ steps.outputs.outputs.backend_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Initialize Terraform remote state
+        run: >-
+          terraform -chdir=infra init -input=false
+          -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}"
+          -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}"
+          -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}"
+          -backend-config="key=akcloud.tfstate"
+      - name: Export Terraform outputs
+        id: outputs
+        shell: bash
+        run: |
+          echo "acr_name=$(terraform -chdir=infra output -raw acr_name)" >> "$GITHUB_OUTPUT"
+          echo "acr_login_server=$(terraform -chdir=infra output -raw acr_login_server)" >> "$GITHUB_OUTPUT"
+          echo "backend_url=$(terraform -chdir=infra output -raw backend_url)" >> "$GITHUB_OUTPUT"
+
+  build-backend:
+    name: Build and push backend image
+    needs: infrastructure-outputs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Login to ACR
+        run: az acr login --name "${{ needs.infrastructure-outputs.outputs.acr_name }}"
+      - name: Build and push backend
+        run: |
+          image="${{ needs.infrastructure-outputs.outputs.acr_login_server }}/akcloud-backend:${IMAGE_TAG}"
+          docker build -f deploy/docker/Dockerfile.backend -t "$image" .
+          docker push "$image"
+
+  build-frontend:
+    name: Build and push frontend image
+    needs: infrastructure-outputs
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: Login to ACR
+        run: az acr login --name "${{ needs.infrastructure-outputs.outputs.acr_name }}"
+      - name: Build and push frontend
+        run: |
+          image="${{ needs.infrastructure-outputs.outputs.acr_login_server }}/akcloud-frontend:${IMAGE_TAG}"
+          docker build -f deploy/docker/Dockerfile.frontend --build-arg VITE_API_URL="${{ needs.infrastructure-outputs.outputs.backend_url }}/api" -t "$image" .
+          docker push "$image"
+
+  deploy:
+    name: Deploy images to Container Apps
+    needs: [infrastructure-outputs, build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - uses: hashicorp/setup-terraform@v3
+      - name: Initialize Terraform remote state
+        run: >-
+          terraform -chdir=infra init -input=false
+          -backend-config="resource_group_name=${{ secrets.TF_STATE_RESOURCE_GROUP }}"
+          -backend-config="storage_account_name=${{ secrets.TF_STATE_STORAGE_ACCOUNT }}"
+          -backend-config="container_name=${{ secrets.TF_STATE_CONTAINER }}"
+          -backend-config="key=akcloud.tfstate"
+      - name: Deploy images
+        run: terraform -chdir=infra apply -input=false -auto-approve -var="image_tag=${IMAGE_TAG}"
+      - name: Print application URLs
+        run: |
+          echo "Frontend: $(terraform -chdir=infra output -raw frontend_url)"
+          echo "Backend: $(terraform -chdir=infra output -raw backend_url)"

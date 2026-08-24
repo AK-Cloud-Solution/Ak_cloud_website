@@ -18,13 +18,14 @@ Create these GitHub Actions secrets:
 - `AZURE_CLIENT_SECRET`
 - `AZURE_TENANT_ID`
 - `AZURE_SUBSCRIPTION_ID`
+- `AZURE_CREDENTIALS` (use this JSON secret for the workflows)
 - `MONGO_URI`
 - `ADMIN_KEY`
 - `JWT_SECRET`
 - `EMAIL_USER` (optional)
 - `EMAIL_PASS` (optional)
 
-The Azure values must be configured as repository secrets, or as secrets on every environment used by the workflow. The names are case-sensitive. `AZURE_CLIENT_ID` is the application/client ID, `AZURE_CLIENT_SECRET` is its client secret, `AZURE_TENANT_ID` is the Microsoft Entra tenant ID, and `AZURE_SUBSCRIPTION_ID` is the target subscription ID. Rotate the client secret before it expires and never commit it to the repository.
+The workflows use `AZURE_CREDENTIALS`, a JSON secret containing `clientId`, `clientSecret`, `subscriptionId`, and `tenantId`. Configure it as a repository secret, or on every environment used by the workflow. Rotate the client secret before it expires and never commit this value to the repository.
 
 The workflows use service-principal authentication with the client secret. Grant the service principal `Contributor` on the deployment resource group or subscription and `User Access Administrator` if it must create the `AcrPull` role assignment.
 
